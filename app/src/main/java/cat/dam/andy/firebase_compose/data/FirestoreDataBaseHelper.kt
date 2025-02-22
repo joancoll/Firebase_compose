@@ -1,9 +1,14 @@
-package cat.dam.andy.firebase_compose
+package cat.dam.andy.firebase_compose.data
 
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import cat.dam.andy.firebase_compose.model.ItemComparator
+import cat.dam.andy.firebase_compose.R
+import cat.dam.andy.firebase_compose.viewmodel.UserListViewModel
+import cat.dam.andy.firebase_compose.model.Item
 import com.google.android.gms.tasks.Task
+import com.google.android.gms.tasks.Tasks
 import com.google.firebase.FirebaseException
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.EventListener
@@ -28,7 +33,6 @@ class FirestoreDataBaseHelper(appContext: Context, private val viewModel: UserLi
         // Inicialitzem la base de dades
         db = FirebaseFirestore.getInstance()
         startDbChangeListener()
-
     }
 
     fun startDbChangeListener() {
@@ -39,10 +43,10 @@ class FirestoreDataBaseHelper(appContext: Context, private val viewModel: UserLi
                 assert(documentSnapshots != null)
                 getAllContacts { success, items ->
                     if (success) {
-                        //ordena alfabèticament la llista d'usuaris (cal crear un objecte per actualitzar)
-                        val sortedItems = items.sortedWith(CustomComparator())
+                        // Ordena alfabèticament la llista d'usuaris
+                        val sortedItems = items.sortedWith(ItemComparator())
                         // Utilitza el ViewModel per actualitzar les dades inicials amb una nova llista ordenada
-                        viewModel.updateUserList(sortedItems.toList())
+                        viewModel.updateUserList(sortedItems)
                     } else {
                         Toast.makeText(context, "Error: $items", Toast.LENGTH_SHORT).show()
                     }
@@ -50,12 +54,11 @@ class FirestoreDataBaseHelper(appContext: Context, private val viewModel: UserLi
             })
     }
 
+    fun addContact(item: Item, onResult: (Boolean, String) -> Unit) {
+        val name = item.name
+        val lastname = item.lastname
 
-    fun addContact(item: Item, onResult: (Boolean, Item?) -> Unit) {
-        val itemName = item.name
-        val itemLastname = item.lastname
-
-        val user = Item(name = itemName, lastname = itemLastname)
+        val user = Item(name = name, lastname = lastname)
 
         db.collection(COLLECTION_KEY)
             .add(user)
@@ -69,7 +72,7 @@ class FirestoreDataBaseHelper(appContext: Context, private val viewModel: UserLi
                 val newUser = user.copy(id = documentReference?.id.orEmpty())
 
                 // Informa de l'èxit i proporciona l'usuari amb l'`id` actualitzat
-                onResult(true, newUser)
+                onResult(true, message)
             }
             .addOnFailureListener { e: Exception ->
                 message = context.getString(R.string.error_user_add) + " " + e.message
@@ -77,11 +80,11 @@ class FirestoreDataBaseHelper(appContext: Context, private val viewModel: UserLi
                 showToast(message)
 
                 // Informa de l'error i retorna l'objecte Item original sense l'`id`
-                onResult(false, user)
+                onResult(false, message)
             }
     }
 
-    fun updateContact(item: Item, editedItem: Item, onResult: (Boolean, Item?) -> Unit) {
+    fun updateContact(item: Item, editedItem: Item, onResult: (Boolean, String) -> Unit) {
         try {
             val name = item.name
             val lastname = item.lastname
@@ -93,7 +96,7 @@ class FirestoreDataBaseHelper(appContext: Context, private val viewModel: UserLi
                     if (task.isSuccessful) {
                         val querySnapShot = task.result
                         if (querySnapShot.size() > 0) {
-                            // Obtinguem la referència del document existent
+                            // Obtenim l'ID del document existent per actualitzar-lo
                             val existingDocument = querySnapShot.documents[0]
                             val documentId = existingDocument.id
 
@@ -109,43 +112,41 @@ class FirestoreDataBaseHelper(appContext: Context, private val viewModel: UserLi
                                         context.getString(R.string.user_updated) + " " + updatedUser.name + " " + updatedUser.lastname
                                     Log.w(TAG, message)
                                     showToast(message)
-                                    onResult(true, updatedUser)
+                                    onResult(true, message)
                                 }
                                 .addOnFailureListener { e: Exception ->
                                     message =
                                         context.getString(R.string.error_user_update) + " " + e.message
                                     Log.w(TAG, message)
                                     showToast(message)
-                                    onResult(false, updatedUser)
+                                    onResult(false, message)
                                 }
                         } else {
                             message =
                                 context.getString(R.string.error_user_not_found) + " " + name + " " + lastname
                             Log.w(TAG, message)
                             showToast(message)
-                            onResult(false, item)
+                            onResult(false, message)
                         }
                     } else {
                         message =
                             context.getString(R.string.error_unexpected) + " " + task.exception
                         Log.w(TAG, message)
                         showToast(message)
-                        onResult(false, item)
+                        onResult(false, message)
                     }
                 }
         } catch (e: FirebaseException) {
-            // Aquí captures i gestionaràs l'error de connexió amb Firebase
             e.printStackTrace()
             message =
                 context.getString(R.string.error_connectivity) + " " + e.printStackTrace()
             Log.w(TAG, message)
             showToast(message)
-            onResult(false, item)
+            onResult(false, message)
         }
     }
 
-
-    fun removeContact(item: Item, onResult: (Boolean, Item?) -> Unit) {
+    fun removeContact(item: Item, onResult: (Boolean, String) -> Unit) {
         val name = item.name
         val lastname = item.lastname
         db.collection(COLLECTION_KEY)
@@ -165,14 +166,14 @@ class FirestoreDataBaseHelper(appContext: Context, private val viewModel: UserLi
                                     context.getString(R.string.user_removed) + " " + item.name + " " + item.lastname
                                 Log.w(TAG, message)
                                 showToast(message)
-                                onResult(true, item)
+                                onResult(true, message)
                             }
                             .addOnFailureListener { e: Exception ->
                                 message =
                                     context.getString(R.string.error_user_remove) + " " + e.message
                                 Log.w(TAG, message)
                                 showToast(message)
-                                onResult(false, item)
+                                onResult(false, message)
                             }
                     } else {
                         // Usuari no trobat
@@ -180,18 +181,17 @@ class FirestoreDataBaseHelper(appContext: Context, private val viewModel: UserLi
                             context.getString(R.string.error_user_not_found) + " " + name + " " + lastname
                         Log.w(TAG, message)
                         showToast(message)
-                        onResult(false, item)
+                        onResult(false, message)
                     }
                 } else {
                     // Error en la consulta
                     message = context.getString(R.string.error_user) + "(" + task.exception + ")"
                     Log.w(TAG, message)
                     showToast(message)
-                    onResult(false, null)
+                    onResult(false, message)
                 }
             }
     }
-
 
     fun getAllContacts(onComplete: (success: Boolean, items: List<Item>) -> Unit) {
         db.collection(COLLECTION_KEY)
@@ -215,27 +215,46 @@ class FirestoreDataBaseHelper(appContext: Context, private val viewModel: UserLi
             }
     }
 
-
     fun getContacts(filter: String, onComplete: (Boolean, List<Item>) -> Unit) {
+        // Filtra els resultats en funció de filter
+        // Firestore no suporta consultes de subcadenes de manera nativa (no pot filtrar per subcadena)
+        // tampoc suporta consultes de text que no siguin exactes ni diferents de majúscules/minúscules
         if (filter.isNotBlank()) {
-            println(filter)
-            // Filtra els resultats en funció de filter
-            db.collection(COLLECTION_KEY)
-                .orderBy(COLUMN_NAME)
-                .startAt(filter)
-                .endAt(filter + '\uf8ff')// darrer caràcter Unicode
+            val filterLowercase = filter.lowercase()
+
+            // Consulta 1: Cerca a fullNameLowercase
+            val query1 = db.collection(COLLECTION_KEY)
+                .orderBy("fullNameLowercase")
+                .startAt(filterLowercase)
+                .endAt("$filterLowercase\uf8ff")
                 .limit(10)
-                //.whereArrayContains(COLUMN_NAME, filter)
-                //.whereEqualTo(COLUMN_NAME, filter)
-                .get()
-                .addOnSuccessListener { result ->
-                    val items = mutableListOf<Item>()
-                    for (document in result) {
-                        // Converteix cada document a un objecte Item i afegeix a la llista
+
+            // Consulta 2: Cerca a fullNameReversedLowercase
+            val query2 = db.collection(COLLECTION_KEY)
+                .orderBy("fullNameReversedLowercase")
+                .startAt(filterLowercase)
+                .endAt("$filterLowercase\uf8ff")
+                .limit(10)
+
+            // Executa les dues consultes
+            val items = mutableListOf<Item>()
+            val seenIds = mutableSetOf<String>() // Per evitar duplicats
+
+            // Funció per processar els resultats
+            fun processResult(result: QuerySnapshot) {
+                for (document in result) {
+                    if (!seenIds.contains(document.id)) {
                         val item = document.toObject(Item::class.java)
                         items.add(item)
+                        seenIds.add(document.id)
                     }
-                    println(items)
+                }
+            }
+
+            // Executa les dues consultes en paral·lel
+            Tasks.whenAllSuccess<QuerySnapshot>(query1.get(), query2.get())
+                .addOnSuccessListener { results ->
+                    results.forEach { processResult(it) }
                     onComplete(true, items)
                 }
                 .addOnFailureListener { exception ->
