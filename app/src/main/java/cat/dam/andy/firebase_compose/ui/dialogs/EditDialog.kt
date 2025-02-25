@@ -28,7 +28,7 @@ fun EditDialog(
     Dialog(onDismissRequest = onDismissRequest) {
         AlertDialog(
             onDismissRequest = onDismissRequest,
-            title = { Text("Editar contacte") },
+            title = { Text("Edita contacte") },
             text = {
                 Column {
                     val focusManager = LocalFocusManager.current
@@ -59,12 +59,12 @@ fun EditDialog(
                     onConfirm(item, editedName, editedLastname)
                     onDismissRequest() // Tanca el diàleg
                 }) {
-                    Text("Guardar canvis")
+                    Text("Guarda canvis")
                 }
             },
             dismissButton = {
                 Button(onClick = onDismissRequest) {
-                    Text("Cancel·lar")
+                    Text("Cancel·la")
                 }
             }
         )

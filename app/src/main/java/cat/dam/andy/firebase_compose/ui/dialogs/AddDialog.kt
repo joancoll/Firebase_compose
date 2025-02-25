@@ -26,7 +26,7 @@ fun AddDialog(
     Dialog(onDismissRequest = onDismissRequest) {
         AlertDialog(
             onDismissRequest = onDismissRequest,
-            title = { Text("Afegir contacte") },
+            title = { Text("Afegeix contacte") },
             text = {
                 Column {
                     val focusManager = LocalFocusManager.current
@@ -57,12 +57,12 @@ fun AddDialog(
                     onConfirm(name, lastname)
                     onDismissRequest() // Tanca el diàleg
                 }) {
-                    Text("Afegir")
+                    Text("Afegeix")
                 }
             },
             dismissButton = {
                 Button(onClick = onDismissRequest) {
-                    Text("Cancel·lar")
+                    Text("Cancel·la")
                 }
             }
         )

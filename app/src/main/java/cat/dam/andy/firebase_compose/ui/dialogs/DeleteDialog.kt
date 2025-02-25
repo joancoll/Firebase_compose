@@ -12,19 +12,19 @@ fun DeleteDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        title = { Text("Eliminar contacte") },
+        title = { Text("Elimina contacte") },
         text = { Text("Segur que vols eliminar el contacte ${item.name} ${item.lastname}?") },
         confirmButton = {
             Button(onClick = {
                 onConfirm(item)
                 onDismissRequest() // Tanca el diàleg
             }) {
-                Text("Eliminar")
+                Text("Elimina")
             }
         },
         dismissButton = {
             Button(onClick = onDismissRequest) {
-                Text("Cancel·lar")
+                Text("Cancel·la")
             }
         }
     )

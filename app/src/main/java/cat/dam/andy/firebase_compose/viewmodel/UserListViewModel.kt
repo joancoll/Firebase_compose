@@ -15,9 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class UserListViewModel : ViewModel() {
-    // Estat del diàleg
-    var dialogState by mutableStateOf<DialogState>(DialogState.None)
-        private set
+    // Estat del diàleg (utilitzem StateFlow)
+    private val _dialogState = MutableStateFlow<DialogState>(DialogState.None)
+    val dialogState: StateFlow<DialogState> = _dialogState.asStateFlow()
 
     // Estat de la llista d'usuaris
     private val _userListState = MutableStateFlow<List<Item>>(emptyList())
@@ -60,6 +60,7 @@ class UserListViewModel : ViewModel() {
         }
     }
 
+    // Afegir un contacte
     fun addContact(name: String, lastname: String, onResult: (Boolean, String) -> Unit) {
         if (name.isNotBlank() && name.length >= 2) {
             val newItem = Item(name = name, lastname = lastname)
@@ -74,8 +75,9 @@ class UserListViewModel : ViewModel() {
         }
     }
 
+    // Editar un contacte
     fun updateContact(item: Item, name: String, lastname: String, onResult: (Boolean, String) -> Unit) {
-        if (name.isNotBlank()  && name.length >= 2 ) {
+        if (name.isNotBlank() && name.length >= 2) {
             val editedItem = Item(name = name, lastname = lastname)
             databaseHelper.updateContact(item, editedItem) { success, message ->
                 if (success) {
@@ -100,21 +102,21 @@ class UserListViewModel : ViewModel() {
 
     // Mostrar el diàleg per afegir
     fun showAddDialog() {
-        dialogState = DialogState.Add
+        _dialogState.value = DialogState.Add
     }
 
     // Mostrar el diàleg per editar
     fun showEditDialog(item: Item) {
-        dialogState = DialogState.Edit(item)
+        _dialogState.value = DialogState.Edit(item)
     }
 
     // Mostrar el diàleg per eliminar
     fun showDeleteDialog(item: Item) {
-        dialogState = DialogState.Delete(item)
+        _dialogState.value = DialogState.Delete(item)
     }
 
     // Tancar el diàleg
     fun dismissDialog() {
-        dialogState = DialogState.None
+        _dialogState.value = DialogState.None
     }
 }
