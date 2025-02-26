@@ -1,13 +1,19 @@
 package cat.dam.andy.firebase_compose.viewmodel
 
+import android.content.Context
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 
 class AuthViewModel : ViewModel() {
@@ -23,6 +29,7 @@ class AuthViewModel : ViewModel() {
         data class Success(val user: FirebaseUser) : AuthState() // Autenticació exitosa
         data class Error(val message: String) : AuthState() // Error en l'autenticació
         data class Anonymous(val user: FirebaseUser) : AuthState() // Autenticació anònima
+        object BiometricSuccess : AuthState() // Autenticació biomètrica exitosa
     }
 
     // Flux per als missatges de Snackbar
@@ -56,7 +63,8 @@ class AuthViewModel : ViewModel() {
             return
         }
         if (password.length < 6) {
-            _authState.value = AuthState.Error("La contrasenya ha de tenir com a mínim 6 caràcters.")
+            _authState.value =
+                AuthState.Error("La contrasenya ha de tenir com a mínim 6 caràcters.")
             return
         }
         viewModelScope.launch {
@@ -81,7 +89,8 @@ class AuthViewModel : ViewModel() {
                 val user = auth.currentUser
                 _authState.value = AuthState.Success(user!!)
             } catch (e: Exception) {
-                _authState.value = AuthState.Error("Error en l'autenticació amb Google: ${e.message}")
+                _authState.value =
+                    AuthState.Error("Error en l'autenticació amb Google: ${e.message}")
             }
         }
     }
@@ -93,7 +102,8 @@ class AuthViewModel : ViewModel() {
             return
         }
         if (password.length < 6) {
-            _authState.value = AuthState.Error("La contrasenya ha de tenir com a mínim 6 caràcters.")
+            _authState.value =
+                AuthState.Error("La contrasenya ha de tenir com a mínim 6 caràcters.")
             return
         }
 
@@ -108,7 +118,8 @@ class AuthViewModel : ViewModel() {
                 user?.sendEmailVerification()?.await()
 
                 // Mostrar missatge a l'usuari
-                _authState.value = AuthState.Error("S'ha enviat un correu de verificació. Si us plau, verifica el teu correu electrònic.")
+                _authState.value =
+                    AuthState.Error("S'ha enviat un correu de verificació. Si us plau, verifica el teu correu electrònic.")
             } catch (e: Exception) {
                 _authState.value = AuthState.Error("Error en registrar l'usuari: ${e.message}")
             }
@@ -133,4 +144,67 @@ class AuthViewModel : ViewModel() {
             }
         }
     }
+
+    // Autenticació biomètrica
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun authenticateBiometrically(context: Context, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val isAuthenticated = performBiometricAuthentication(context)
+                if (isAuthenticated) {
+                    val user = auth.currentUser
+                    if (user != null) {
+                        _authState.value = AuthState.Success(user)
+                        onSuccess()
+                    } else {
+                        _authState.value = AuthState.BiometricSuccess
+                        onSuccess()
+                    }
+                } else {
+                    onError("Autenticació biomètrica fallida")
+                }
+            } catch (e: Exception) {
+                onError("Error en l'autenticació biomètrica: ${e.message}")
+            }
+        }
+    }
+
+    // Funció privada per gestionar l'autenticació biomètrica
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private suspend fun performBiometricAuthentication(context: Context): Boolean {
+        val activity = context as FragmentActivity
+        val executor = ContextCompat.getMainExecutor(context)
+        return suspendCancellableCoroutine { continuation ->
+            val biometricPrompt = BiometricPrompt(activity, executor, object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    super.onAuthenticationError(errorCode, errString)
+                    continuation.resumeWith(Result.failure(Exception(errString.toString())))
+                }
+
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+                    continuation.resumeWith(Result.success(true))
+                }
+
+                override fun onAuthenticationFailed() {
+                    super.onAuthenticationFailed()
+                    continuation.resumeWith(Result.success(false))
+                }
+            })
+
+            val promptInfo = BiometricPrompt.PromptInfo.Builder()
+                .setTitle("Autenticació biomètrica")
+                .setSubtitle("Utilitza el teu reconeixement facial o empremta dactilar per accedir")
+                .setNegativeButtonText("Cancel·lar")
+                .build()
+
+            biometricPrompt.authenticate(promptInfo)
+
+            // Gestiona la cancel·lació de la corrutina
+            continuation.invokeOnCancellation {
+                biometricPrompt.cancelAuthentication() // Cancel·la l'autenticació biomètrica
+            }
+        }
+    }
+
 }

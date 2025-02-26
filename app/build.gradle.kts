@@ -74,7 +74,8 @@ dependencies {
     implementation(libs.credentials.play.services.auth) // Suport per a Google Sign-In
     implementation(libs.googleid) // Google Identity
     implementation(libs.firebase.auth.ktx) // Firebase Authentication
-    implementation(libs.play.services.auth) // per versions anteriors SDK<34
+    implementation(libs.play.services.auth) // per versions anteriors SDK>=28
+    implementation(libs.androidx.biometric)
 
 
     //Firestore i Storage

@@ -82,7 +82,7 @@ fun MainScreen(
                             .padding(8.dp)
                             .align(Alignment.End)
                     ) {
-                        Text("Torna a l'autenticació")
+                        Text("Tanca sessió\n(Accés anònim)")
                     }
                 }
 
@@ -100,6 +100,22 @@ fun MainScreen(
                             .align(Alignment.End)
                     ) {
                         Text("Tanca sessió\n(${user.email ?: user.displayName})")
+                    }
+                }
+
+                is AuthViewModel.AuthState.BiometricSuccess -> {
+                    Button(
+                        onClick = {
+                            authViewModel.signOut()
+                            navController.navigate("auth") {
+                                popUpTo("main") { inclusive = true }
+                            }
+                        },
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .align(Alignment.End)
+                    ) {
+                        Text("Tanca sessió\n(Accés biomètric)")
                     }
                 }
 

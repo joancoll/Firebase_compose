@@ -1,5 +1,8 @@
+import android.content.Context
 import android.os.Build
 import android.util.Log
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -13,7 +16,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.credentials.*
+import androidx.fragment.app.FragmentActivity
 import androidx.navigation.NavController
 import com.google.android.gms.auth.api.signin.*
 import com.google.android.gms.common.api.ApiException
@@ -26,6 +31,9 @@ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import cat.dam.andy.firebase_compose.R
 import cat.dam.andy.firebase_compose.viewmodel.AuthViewModel
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 @Composable
 fun AuthScreen(navController: NavController, authViewModel: AuthViewModel) {
@@ -67,16 +75,19 @@ fun AuthScreen(navController: NavController, authViewModel: AuthViewModel) {
                     authViewModel.signOut() // Tanca la sessió fins que es verifiqui
                 }
             }
+
             is AuthViewModel.AuthState.Error -> {
                 val errorMessage = (authState as AuthViewModel.AuthState.Error).message
                 snackbarHostState.showSnackbar(errorMessage)
                 authViewModel.clearError()
             }
+
             is AuthViewModel.AuthState.Anonymous -> {
                 navController.navigate("main") {
                     popUpTo("auth") { inclusive = true }
                 }
             }
+
             else -> {
                 // No fer res
             }
@@ -145,8 +156,29 @@ fun AuthScreen(navController: NavController, authViewModel: AuthViewModel) {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Botó per iniciar l'autenticació biomètrica
+            if (isBiometricAvailable(context)) {
+                Button(onClick = {
+                    authViewModel.authenticateBiometrically(
+                        context = context,
+                        onSuccess = {
+                            navController.navigate("main") {
+                                popUpTo("auth") { inclusive = true }
+                            }
+                        },
+                        onError = { message ->
+                            coroutineScope.launch {
+                                snackbarHostState.showSnackbar(message)
+                            }
+                        }
+                    )
+                }) {
+                    Text("Inici biomètric")
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
             Button(onClick = { startGoogleSignIn() }) {
-                Text("Iniciar sessió amb Google")
+                Text("Inicia sessió amb Google")
             }
             Spacer(modifier = Modifier.height(16.dp))
             OutlinedTextField(
@@ -192,7 +224,7 @@ fun AuthScreen(navController: NavController, authViewModel: AuthViewModel) {
         }
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier.align(Alignment.Center)
         )
     }
 }
@@ -231,4 +263,9 @@ private fun firebaseAuthWithGoogle(
     snackbarHostState: SnackbarHostState
 ) {
     authViewModel.signInWithGoogle(idToken)
+}
+
+fun isBiometricAvailable(context: Context): Boolean {
+    val biometricManager = BiometricManager.from(context)
+    return biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
 }

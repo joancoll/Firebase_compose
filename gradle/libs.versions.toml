@@ -1,5 +1,6 @@
 [versions]
 activityCompose = "1.10.0"
+biometricVersion = "1.4.0-alpha02"
 composeBom = "2025.02.00"
 coreKtx = "1.15.0"
 espressoCore = "3.6.1"
@@ -18,6 +19,7 @@ workRuntime = "2.10.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
+androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometricVersion" }
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }

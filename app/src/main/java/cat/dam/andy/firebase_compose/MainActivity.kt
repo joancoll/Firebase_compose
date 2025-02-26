@@ -5,13 +5,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.material3.MaterialTheme
+import androidx.fragment.app.FragmentActivity
 import cat.dam.andy.firebase_compose.data.FirestoreDataBaseHelper
 import cat.dam.andy.firebase_compose.navigation.AppNavigation
-import cat.dam.andy.firebase_compose.ui.theme.Firebase_composeTheme
 import cat.dam.andy.firebase_compose.viewmodel.AuthViewModel
 import cat.dam.andy.firebase_compose.viewmodel.UserListViewModel
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+    // en la versió de Biometrica cal que sigui FragmentActivity i no ComponentActivity
     // Inicialitzem els ViewModels
     private val userListViewModel: UserListViewModel by viewModels()
     private val authViewModel: AuthViewModel by viewModels()
